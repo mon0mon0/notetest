@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import { AppContext } from './App'
 
 export default function Notes({ session }: { session: any }) {
-  const { lang } = useContext(AppContext)
+  const { lang } = useContext(AppContext) as { lang: 'ru' | 'en' }
   const [notes, setNotes] = useState<any[]>([])
   const [activeNote, setActiveNote] = useState<any>(null)
   const [isSaving, setIsSaving] = useState(false)

@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { AppContext } from './App'
 
 export default function Tasks({ session }: { session: any }) {
-  const { lang } = useContext(AppContext)
+  const { lang } = useContext(AppContext) as { lang: 'ru' | 'en' }
   const [tasks, setTasks] = useState<any[]>([])
   const [newTask, setNewTask] = useState('')
   const [newTime, setNewTime] = useState('')
