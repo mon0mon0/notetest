@@ -1,0 +1,220 @@
+From e1442163ff10e176abf70d9ee1e84dd754e98ee7 Mon Sep 17 00:00:00 2001
+From: mon0mon0 <mon0mon0@users.noreply.github.com>
+Date: Thu, 20 Aug 2026 07:11:54 +0000
+Subject: [PATCH] fix: security hardening + UX fixes
+
+- remove .env from git tracking, add to .gitignore
+- add loading states for notes/tasks fetch
+- add 5MB file size limit for image uploads
+- set explicit CSP instead of null in tauri.conf.json
+- add RLS policies for notes/tasks/storage (supabase/*.sql)
+---
+ .env                          |  2 --
+ .env.example                  |  2 ++
+ .gitignore                    |  2 ++
+ src-tauri/tauri.conf.json     |  2 +-
+ src/Notes.tsx                 | 18 +++++++++++++++---
+ src/Tasks.tsx                 | 13 ++++++++++---
+ supabase/rls_policies.sql     | 29 +++++++++++++++++++++++++++++
+ supabase/storage_policies.sql | 18 ++++++++++++++++++
+ 8 files changed, 77 insertions(+), 9 deletions(-)
+ delete mode 100644 .env
+ create mode 100644 .env.example
+ create mode 100644 supabase/rls_policies.sql
+ create mode 100644 supabase/storage_policies.sql
+
+diff --git a/.env b/.env
+deleted file mode 100644
+index 35cd525..0000000
+--- a/.env
++++ /dev/null
+@@ -1,2 +0,0 @@
+-VITE_SUPABASE_URL=https://mhixmciophdztoynkygo.supabase.co
+-VITE_SUPABASE_ANON_KEY=sb_publishable_PFqC7UTs0OPAK7bzPNet8g_tfBlzQg4
+diff --git a/.env.example b/.env.example
+new file mode 100644
+index 0000000..abfdc28
+--- /dev/null
++++ b/.env.example
+@@ -0,0 +1,2 @@
++VITE_SUPABASE_URL=
++VITE_SUPABASE_ANON_KEY=
+diff --git a/.gitignore b/.gitignore
+index e2e2acf..a99e4e5 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -2,3 +2,5 @@ node_modules
+ dist
+ src-tauri/target
+ .DS_Store
++.env
++.env.local
+diff --git a/src-tauri/tauri.conf.json b/src-tauri/tauri.conf.json
+index 54135f9..dcb603d 100644
+--- a/src-tauri/tauri.conf.json
++++ b/src-tauri/tauri.conf.json
+@@ -20,7 +20,7 @@
+       }
+     ],
+     "security": {
+-      "csp": null
++      "csp": "default-src 'self'; connect-src 'self' https://mhixmciophdztoynkygo.supabase.co wss://mhixmciophdztoynkygo.supabase.co; img-src 'self' data: https://mhixmciophdztoynkygo.supabase.co; style-src 'self' 'unsafe-inline'; script-src 'self'"
+     }
+   }
+ }
+diff --git a/src/Notes.tsx b/src/Notes.tsx
+index 10b1de9..2fbd4b4 100644
+--- a/src/Notes.tsx
++++ b/src/Notes.tsx
+@@ -13,10 +13,11 @@ export default function Notes({ session }: { session: any }) {
+   const [activeNote, setActiveNote] = useState<any>(null)
+   const [isSaving, setIsSaving] = useState(false)
+   const [isUploading, setIsUploading] = useState(false)
++  const [isLoading, setIsLoading] = useState(true)
+ 
+   const t = {
+-    ru: { title: 'Блокнот', new: 'Новая заметка', empty: 'Нет заметок', save: 'Сохранить', insertImg: 'Вставить картинку', select: 'Выберите заметку слева или создайте новую', successSave: 'Сохранено', successDel: 'Удалено' },
+-    en: { title: 'Notes', new: 'New note', empty: 'No notes', save: 'Save', insertImg: 'Insert Image', select: 'Select a note on the left or create a new one', successSave: 'Saved', successDel: 'Deleted' }
++    ru: { title: 'Блокнот', new: 'Новая заметка', empty: 'Нет заметок', save: 'Сохранить', insertImg: 'Вставить картинку', select: 'Выберите заметку слева или создайте новую', successSave: 'Сохранено', successDel: 'Удалено', loading: 'Загрузка...', imgTooBig: 'Файл слишком большой (макс. 5MB)' },
++    en: { title: 'Notes', new: 'New note', empty: 'No notes', save: 'Save', insertImg: 'Insert Image', select: 'Select a note on the left or create a new one', successSave: 'Saved', successDel: 'Deleted', loading: 'Loading...', imgTooBig: 'File is too large (max 5MB)' }
+   }[lang]
+ 
+   const editor = useEditor({
+@@ -41,8 +42,10 @@ export default function Notes({ session }: { session: any }) {
+   }, [activeNote?.id, editor])
+ 
+   const fetchNotes = async () => {
++    setIsLoading(true)
+     const { data } = await supabase.from('notes').select('*').order('created_at', { ascending: false })
+     if (data) setNotes(data)
++    setIsLoading(false)
+   }
+ 
+   const createNote = async () => {
+@@ -78,6 +81,11 @@ export default function Notes({ session }: { session: any }) {
+   const uploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+     const file = e.target.files?.[0]
+     if (!file || !editor) return
++    if (file.size > 5 * 1024 * 1024) {
++      toast.error(t.imgTooBig)
++      e.target.value = ''
++      return
++    }
+     setIsUploading(true)
+     const fileExt = file.name.split('.').pop()
+     const fileName = `${Math.random()}.${fileExt}`
+@@ -115,7 +123,11 @@ export default function Notes({ session }: { session: any }) {
+               </button>
+             </div>
+           ))}
+-          {notes.length === 0 && <p className="text-gray-400 text-sm font-medium text-center py-4">{t.empty}</p>}
++          {isLoading ? (
++            <p className="text-gray-400 text-sm font-medium text-center py-4">{t.loading}</p>
++          ) : notes.length === 0 && (
++            <p className="text-gray-400 text-sm font-medium text-center py-4">{t.empty}</p>
++          )}
+         </div>
+       </div>
+ 
+diff --git a/src/Tasks.tsx b/src/Tasks.tsx
+index eb56e8c..4b7c004 100644
+--- a/src/Tasks.tsx
++++ b/src/Tasks.tsx
+@@ -12,17 +12,20 @@ export default function Tasks({ session }: { session: any }) {
+   const [newTime, setNewTime] = useState('')
+   const [searchQuery, setSearchQuery] = useState('')
+   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all')
++  const [isLoading, setIsLoading] = useState(true)
+ 
+   const t = {
+-    ru: { title: 'Задачи', placeholder: 'Новая задача...', search: 'Поиск задач...', add: 'Добавить', empty: 'Ничего не найдено', successAdd: 'Задача создана', successDel: 'Удалено', all: 'Все', active: 'Активные', completed: 'Завершенные' },
+-    en: { title: 'Tasks', placeholder: 'New task...', search: 'Search tasks...', add: 'Add', empty: 'No tasks found', successAdd: 'Task created', successDel: 'Deleted', all: 'All', active: 'Active', completed: 'Completed' }
++    ru: { title: 'Задачи', placeholder: 'Новая задача...', search: 'Поиск задач...', add: 'Добавить', empty: 'Ничего не найдено', successAdd: 'Задача создана', successDel: 'Удалено', all: 'Все', active: 'Активные', completed: 'Завершенные', loading: 'Загрузка...' },
++    en: { title: 'Tasks', placeholder: 'New task...', search: 'Search tasks...', add: 'Add', empty: 'No tasks found', successAdd: 'Task created', successDel: 'Deleted', all: 'All', active: 'Active', completed: 'Completed', loading: 'Loading...' }
+   }[lang]
+ 
+   useEffect(() => { fetchTasks() }, [])
+ 
+   const fetchTasks = async () => {
++    setIsLoading(true)
+     const { data } = await supabase.from('tasks').select('*').order('created_at', { ascending: false })
+     if (data) setTasks(data)
++    setIsLoading(false)
+   }
+ 
+   const addTask = async (e: React.FormEvent) => {
+@@ -116,7 +119,11 @@ export default function Tasks({ session }: { session: any }) {
+             </motion.div>
+           ))}
+         </AnimatePresence>
+-        {filteredTasks.length === 0 && <p className="text-gray-400 text-center py-10 font-medium">{t.empty}</p>}
++        {isLoading ? (
++          <p className="text-gray-400 text-center py-10 font-medium">{t.loading}</p>
++        ) : filteredTasks.length === 0 && (
++          <p className="text-gray-400 text-center py-10 font-medium">{t.empty}</p>
++        )}
+       </div>
+     </div>
+   )
+diff --git a/supabase/rls_policies.sql b/supabase/rls_policies.sql
+new file mode 100644
+index 0000000..aa84533
+--- /dev/null
++++ b/supabase/rls_policies.sql
+@@ -0,0 +1,29 @@
++-- Включаем Row Level Security на обеих таблицах
++alter table public.notes enable row level security;
++alter table public.tasks enable row level security;
++
++-- NOTES: пользователь видит и меняет только свои записи
++create policy "notes_select_own" on public.notes
++  for select using (auth.uid() = user_id);
++
++create policy "notes_insert_own" on public.notes
++  for insert with check (auth.uid() = user_id);
++
++create policy "notes_update_own" on public.notes
++  for update using (auth.uid() = user_id);
++
++create policy "notes_delete_own" on public.notes
++  for delete using (auth.uid() = user_id);
++
++-- TASKS: то же самое
++create policy "tasks_select_own" on public.tasks
++  for select using (auth.uid() = user_id);
++
++create policy "tasks_insert_own" on public.tasks
++  for insert with check (auth.uid() = user_id);
++
++create policy "tasks_update_own" on public.tasks
++  for update using (auth.uid() = user_id);
++
++create policy "tasks_delete_own" on public.tasks
++  for delete using (auth.uid() = user_id);
+diff --git a/supabase/storage_policies.sql b/supabase/storage_policies.sql
+new file mode 100644
+index 0000000..044f6a3
+--- /dev/null
++++ b/supabase/storage_policies.sql
+@@ -0,0 +1,18 @@
++-- Storage: bucket "images"
++-- Заливать файлы можно только в свою папку {user_id}/...
++create policy "images_insert_own_folder" on storage.objects
++  for insert with check (
++    bucket_id = 'images'
++    and (storage.foldername(name))[1] = auth.uid()::text
++  );
++
++-- Публичное чтение (нужно, т.к. в коде используется getPublicUrl)
++create policy "images_public_select" on storage.objects
++  for select using (bucket_id = 'images');
++
++-- Удалять/менять — только свои файлы
++create policy "images_delete_own_folder" on storage.objects
++  for delete using (
++    bucket_id = 'images'
++    and (storage.foldername(name))[1] = auth.uid()::text
++  );
+-- 
+2.43.0
+

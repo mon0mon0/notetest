@@ -13,10 +13,11 @@ export default function Notes({ session }: { session: any }) {
   const [activeNote, setActiveNote] = useState<any>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   const t = {
-    ru: { title: 'Блокнот', new: 'Новая заметка', empty: 'Нет заметок', save: 'Сохранить', insertImg: 'Вставить картинку', select: 'Выберите заметку слева или создайте новую', successSave: 'Сохранено', successDel: 'Удалено' },
-    en: { title: 'Notes', new: 'New note', empty: 'No notes', save: 'Save', insertImg: 'Insert Image', select: 'Select a note on the left or create a new one', successSave: 'Saved', successDel: 'Deleted' }
+    ru: { title: 'Блокнот', new: 'Новая заметка', empty: 'Нет заметок', save: 'Сохранить', insertImg: 'Вставить картинку', select: 'Выберите заметку слева или создайте новую', successSave: 'Сохранено', successDel: 'Удалено', loading: 'Загрузка...', imgTooBig: 'Файл слишком большой (макс. 5MB)' },
+    en: { title: 'Notes', new: 'New note', empty: 'No notes', save: 'Save', insertImg: 'Insert Image', select: 'Select a note on the left or create a new one', successSave: 'Saved', successDel: 'Deleted', loading: 'Loading...', imgTooBig: 'File is too large (max 5MB)' }
   }[lang]
 
   const editor = useEditor({
@@ -41,8 +42,10 @@ export default function Notes({ session }: { session: any }) {
   }, [activeNote?.id, editor])
 
   const fetchNotes = async () => {
+    setIsLoading(true)
     const { data } = await supabase.from('notes').select('*').order('created_at', { ascending: false })
     if (data) setNotes(data)
+    setIsLoading(false)
   }
 
   const createNote = async () => {
@@ -78,6 +81,11 @@ export default function Notes({ session }: { session: any }) {
   const uploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !editor) return
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(t.imgTooBig)
+      e.target.value = ''
+      return
+    }
     setIsUploading(true)
     const fileExt = file.name.split('.').pop()
     const fileName = `${Math.random()}.${fileExt}`
@@ -115,7 +123,11 @@ export default function Notes({ session }: { session: any }) {
               </button>
             </div>
           ))}
-          {notes.length === 0 && <p className="text-gray-400 text-sm font-medium text-center py-4">{t.empty}</p>}
+          {isLoading ? (
+            <p className="text-gray-400 text-sm font-medium text-center py-4">{t.loading}</p>
+          ) : notes.length === 0 && (
+            <p className="text-gray-400 text-sm font-medium text-center py-4">{t.empty}</p>
+          )}
         </div>
       </div>
 

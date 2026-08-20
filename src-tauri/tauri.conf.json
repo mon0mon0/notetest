@@ -20,7 +20,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src 'self' https://mhixmciophdztoynkygo.supabase.co wss://mhixmciophdztoynkygo.supabase.co; img-src 'self' data: https://mhixmciophdztoynkygo.supabase.co; style-src 'self' 'unsafe-inline'; script-src 'self'"
     }
   }
 }

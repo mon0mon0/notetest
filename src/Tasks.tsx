@@ -12,17 +12,20 @@ export default function Tasks({ session }: { session: any }) {
   const [newTime, setNewTime] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all')
+  const [isLoading, setIsLoading] = useState(true)
 
   const t = {
-    ru: { title: 'Задачи', placeholder: 'Новая задача...', search: 'Поиск задач...', add: 'Добавить', empty: 'Ничего не найдено', successAdd: 'Задача создана', successDel: 'Удалено', all: 'Все', active: 'Активные', completed: 'Завершенные' },
-    en: { title: 'Tasks', placeholder: 'New task...', search: 'Search tasks...', add: 'Add', empty: 'No tasks found', successAdd: 'Task created', successDel: 'Deleted', all: 'All', active: 'Active', completed: 'Completed' }
+    ru: { title: 'Задачи', placeholder: 'Новая задача...', search: 'Поиск задач...', add: 'Добавить', empty: 'Ничего не найдено', successAdd: 'Задача создана', successDel: 'Удалено', all: 'Все', active: 'Активные', completed: 'Завершенные', loading: 'Загрузка...' },
+    en: { title: 'Tasks', placeholder: 'New task...', search: 'Search tasks...', add: 'Add', empty: 'No tasks found', successAdd: 'Task created', successDel: 'Deleted', all: 'All', active: 'Active', completed: 'Completed', loading: 'Loading...' }
   }[lang]
 
   useEffect(() => { fetchTasks() }, [])
 
   const fetchTasks = async () => {
+    setIsLoading(true)
     const { data } = await supabase.from('tasks').select('*').order('created_at', { ascending: false })
     if (data) setTasks(data)
+    setIsLoading(false)
   }
 
   const addTask = async (e: React.FormEvent) => {
@@ -116,7 +119,11 @@ export default function Tasks({ session }: { session: any }) {
             </motion.div>
           ))}
         </AnimatePresence>
-        {filteredTasks.length === 0 && <p className="text-gray-400 text-center py-10 font-medium">{t.empty}</p>}
+        {isLoading ? (
+          <p className="text-gray-400 text-center py-10 font-medium">{t.loading}</p>
+        ) : filteredTasks.length === 0 && (
+          <p className="text-gray-400 text-center py-10 font-medium">{t.empty}</p>
+        )}
       </div>
     </div>
   )
