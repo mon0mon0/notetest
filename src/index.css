@@ -1,38 +1,117 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+:root {
+  --bg: #F2F2F3;
+  --surface: #FFFFFF;
+  --surface-2: #F6F6F7;
+  --surface-hover: #ECECED;
+  --border: rgba(0,0,0,0.08);
+  --border-strong: rgba(0,0,0,0.14);
+  --text: #1D1D1F;
+  --text-dim: #6E6E73;
+  --text-faint: #A1A1A6;
+  --accent: #0A84FF;
+  --accent-strong: #0071E3;
+  --accent-soft: #0A84FF22;
+  --success: #12A454;
+  --danger: #FF3B30;
+  --glass: rgba(255,255,255,0.72);
+  --shadow-panel: 0 12px 40px -12px rgba(0,0,0,0.18);
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Inter, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+}
+
+.dark {
+  --bg: #1C1C1E;
+  --surface: #262628;
+  --surface-2: #2C2C2E;
+  --surface-hover: #333335;
+  --border: rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.14);
+  --text: #F5F5F7;
+  --text-dim: #98989D;
+  --text-faint: #636366;
+  --success: #30D158;
+  --danger: #FF453A;
+  --glass: rgba(38,38,40,0.72);
+  --shadow-panel: 0 16px 48px -14px rgba(0,0,0,0.55);
+}
+
+* { box-sizing: border-box; }
+
 body {
   margin: 0;
   padding: 0;
-  @apply bg-gray-50 text-gray-900 transition-colors duration-300;
-  overflow: hidden; /* Скролл управляется внутри контейнеров приложения */
-  user-select: none; /* Отключаем случайное выделение интерфейса */
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+  transition: background-color 0.35s ease, color 0.35s ease;
 }
 
-.dark body {
-  @apply bg-gray-950 text-gray-100;
-}
-
-/* Разрешаем выделять текст только там, где это нужно (заметки, инпуты) */
 input, textarea, [contenteditable="true"] {
   user-select: text;
 }
 
-/* Стилизация кастомного скроллбара */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 dark:bg-gray-700 rounded-full;
+  background: var(--border-strong);
+  border-radius: 999px;
 }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-400 dark:bg-gray-600;
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+
+::selection {
+  background: var(--accent-soft);
+  color: inherit;
 }
 
-/* Цвет выделения текста */
-::selection {
-  @apply bg-blue-500/30 text-inherit;
+/* Стеклянная поверхность в духе Control Center / System Settings */
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
 }
+
+/* Фирменное дышащее свечение под цвет выбранного акцента */
+@keyframes breathe {
+  0%, 100% { opacity: 0.25; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(1.06); }
+}
+.ambient-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 25% 15%, var(--accent) 0%, transparent 55%);
+  filter: blur(90px);
+  opacity: 0.14;
+  animation: breathe 9s ease-in-out infinite;
+}
+.dark .ambient-glow { opacity: 0.2; }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-in {
+  animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.tiptap-content {
+  outline: none;
+  min-height: 460px;
+  color: var(--text);
+  font-size: 0.975rem;
+  line-height: 1.75;
+}
+.tiptap-content p { margin: 0 0 0.6em; }
+.tiptap-content img {
+  max-width: 100%;
+  border-radius: 14px;
+  margin: 1rem 0;
+  box-shadow: 0 8px 30px -12px rgba(0,0,0,0.25);
+}
+.tiptap-content:focus { outline: none; }
